@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOCKBOX</title>
+<style>
+  :root { --bg:#050607; --fg:#e8e8e8; --dim:#777; --red:#ff2a2a; --green:#2aff6a; --amber:#ffb020; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family: ui-monospace, Menlo, Consolas, monospace; }
+  body { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; padding:24px; box-sizing:border-box; }
+  #state { font-size: clamp(48px, 14vw, 180px); font-weight: 900; letter-spacing: .08em; text-shadow: 0 0 40px currentColor; }
+  .locked { color: var(--red); }
+  .unlocked { color: var(--green); animation: blink .35s steps(2) infinite; }
+  .offline { color: var(--dim); }
+  @keyframes blink { to { opacity: .35; } }
+  #stats { display:flex; gap:40px; font-size: clamp(14px, 2.5vw, 24px); color:var(--dim); }
+  #stats b { color: var(--fg); }
+  #log { width: min(900px, 100%); max-height: 35vh; overflow:auto; font-size: 13px; color: var(--dim); border-top: 1px solid #222; padding-top: 12px; }
+  #log div { white-space: nowrap; }
+  #log .unlock, #log .override { color: var(--green); }
+  #log .unlock_refused, #log .unlock_failed { color: var(--amber); }
+</style>
+</head>
+<body>
+  <div id="state" class="offline">OFFLINE</div>
+  <div id="stats">
+    <span>ATTEMPTS <b id="attempts">0</b></span>
+    <span>UNLOCKS <b id="unlocks">0</b></span>
+    <span>BOARD <b id="board">—</b></span>
+  </div>
+  <div id="log"></div>
+<script>
+async function tick() {
+  try {
+    const st = await (await fetch('/status')).json();
+    const el = document.getElementById('state');
+    if (!st.connected) { el.textContent = 'OFFLINE'; el.className = 'offline'; }
+    else if (st.locked) { el.textContent = 'LOCKED'; el.className = 'locked'; }
+    else { el.textContent = 'UNLOCKED'; el.className = 'unlocked'; }
+    document.getElementById('attempts').textContent = (st.signals && st.signals.denied) || 0;
+    document.getElementById('unlocks').textContent = st.unlocks;
+    document.getElementById('board').textContent = st.connected ? (st.port + (st.board ? ' fw ' + st.board.firmware : '')) : 'disconnected';
+    const ev = await (await fetch('/events?n=40')).json();
+    const log = document.getElementById('log');
+    log.innerHTML = ev.slice().reverse().map(e =>
+      `<div class="${e.type}">${new Date(e.at).toLocaleTimeString()}  ${e.type.padEnd(16)} ${e.source ? "[" + e.source + "] " : ""}${e.detail || ""}${e.reason ? "  \"" + e.reason + "\"" : ""}</div>`
+    ).join('');
+  } catch (e) {
+    const el = document.getElementById('state'); el.textContent = 'DAEMON DOWN'; el.className = 'offline';
+  }
+}
+tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

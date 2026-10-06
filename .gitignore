@@ -1,0 +1,24 @@
+# Go
+/bin/
+*.test
+lockbox-audit.jsonl
+
+# KiCad
+*-backups/
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*.kicad_prl
+_autosave-*
+fp-info-cache
+*.lck
+/hardware/kicad/production/
+
+# Arduino
+/firmware/**/build/
+
+.DS_Store
+
+# agent files
+AGENTS.md
+CLAUDE.md
+.claude/
