@@ -57,10 +57,36 @@ Key flags: `-listen 127.0.0.1:7777`, `-token` (bearer auth on POSTs, env
 | `POST /lock` | token | abort a running pulse |
 | `POST /led` | token | `{"mode":"idle|thinking|denied|unlock|party|off"}`. `denied` counts as an attempt |
 
-AI integration: one tool, `open_box`. Its implementation POSTs `/unlock` (or
-runs `lockboxctl unlock -source ai`) with a token that lives in the tool code,
-never in the model's context. Optionally send `led thinking` per message and
-`led denied` per refusal for theatrics.
+## AI integration
+
+The AI program runs on the same laptop and talks to `lockboxd` over localhost.
+Give the model exactly one tool:
+
+```json
+{ "name": "open_box",
+  "description": "Unlock the physical box holding the laptop. Irreversible.",
+  "input_schema": { "type": "object", "properties": {
+    "reason": { "type": "string" } } } }
+```
+
+The tool's implementation (not the model) makes the call:
+
+```sh
+curl -s -X POST http://127.0.0.1:7777/unlock \
+  -H "Authorization: Bearer $LOCKBOX_TOKEN" -H "Content-Type: application/json" \
+  -d '{"reason":"<model reason>","source":"ai"}'
+```
+
+Return the JSON body to the model as the tool result. `200` means the box is
+open, `429` cooldown, `503` board offline. `lockboxctl unlock -source ai
+-reason "..."` does the same from a shell (exit 0 / 2 / 3).
+
+Rules: the token lives in the tool code, never in the prompt or context. The
+model gets no other tools. Develop against `lockboxd -mock` before hardware
+exists.
+
+Optional theatrics: `POST /led {"mode":"thinking"}` when a message arrives and
+`{"mode":"denied"}` on each refusal. The unlock light show is automatic.
 
 ## Serial protocol (daemon ⇄ Nano)
 
